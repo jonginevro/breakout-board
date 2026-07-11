@@ -1,0 +1,31 @@
+# =============================================================================
+# Manual catalysts — the human-judgment signals that raw stats can't see:
+# new coaching staffs, scheme changes, an injury/holdout to the guy ahead,
+# reported offseason buzz, a training-camp move up the depth chart.
+#
+# These feed the "catalyst" factor. Keep them honest: only add a signal that
+# points to a CONCRETE reason volume could open up. This is exactly the lever
+# for a thesis like Kaleb Johnson — new coaches + aging RBs ahead of him.
+#
+# Values are 0..1 "confidence" nudges. They are additive within the catalyst
+# factor (capped), then the whole factor is re-normalized.
+#
+#   teams:   apply to every skill player on the team
+#   players: apply to a single player (matched by name, case-insensitive)
+# =============================================================================
+
+teams:
+  # Example — a team that hired a new offensive staff this offseason:
+  # PIT:
+  #   new_coaching_staff: 0.8
+  #   scheme_change: 0.6
+  {}
+
+players:
+  # Example encoding of your Kaleb Johnson thesis. Uncomment / edit names to
+  # match reality (the model will confirm his team + depth from the data).
+  # "Kaleb Johnson":
+  #   injury_or_age_ahead: 0.7     # older RBs ahead of him on the chart
+  #   offseason_buzz: 0.4
+  #   camp_riser: 0.5
+  {}

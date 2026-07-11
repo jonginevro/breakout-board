@@ -1,0 +1,67 @@
+# =============================================================================
+# Breakout model weights.  Everything here is tunable — change a number, rerun.
+#
+# The score is built from four FACTORS, each normalized 0..1 within a player's
+# position group (so RBs compete with RBs, WRs with WRs):
+#
+#   opportunity   – how much room is there for volume to grow?
+#   catalyst      – how likely is that room to actually open for THIS player?
+#   efficiency    – if the volume comes, can he convert it into fantasy points?
+#   suppression   – how cheap/undervalued is he right now? (cheap = more upside)
+#
+# opportunity, catalyst, efficiency are combined with a GEOMETRIC mean, so a
+# player must score on ALL THREE — this is what stops "every rookie is a
+# breakout". A rookie with huge opportunity but a crowded depth chart (low
+# catalyst) gets pulled down hard. Suppression then discounts by current price.
+#
+#   score = 100 * geomean(opp, cat, eff)^shape * (value_floor + (1-value_floor)*suppression)
+# =============================================================================
+
+# How much the "cheapness" of a player can swing the score.
+# value_floor = 0.4 means a player OUTSIDE the value sweet spot keeps 40% of his
+# score; a player right in the sweet spot keeps 100%. Lower = punish harder.
+value_floor: 0.40
+
+# The "breakout value sweet spot". Suppression peaks for players near
+# `peak_rank` in Sleeper's ordering (cheap but still on the radar) and falls off
+# for BOTH elite players (already priced in) and off-radar players (no market /
+# unproven — the occasional deep breakout, but unreliable, so we don't chase it).
+# sigma is the width in log10 space. This is what stops both traps:
+# "every rookie" (needs catalyst+efficiency too) and "every scrub is cheap".
+value:
+  peak_rank: 175    # ~ the late-round / early-waiver tier where breakouts live
+  sigma: 0.55       # broader = rewards a wider band of prices
+
+# >1 sharpens separation at the top, <1 flattens. 1.0 = plain geometric mean.
+shape: 1.0
+
+# ---- Sub-weights inside each factor (need not sum to 1; normalized internally)
+opportunity:
+  team_vacated_share: 0.45   # share of team touches/targets left by departed players
+  personal_headroom:  0.30   # 1 - his current share (suppressed usage = room)
+  depth_gap:          0.25   # depth-chart rank better than his current usage
+
+catalyst:
+  draft_capital:     0.25    # high pick => team wants him on the field
+  age_window:        0.20    # is he in the breakout age band for his position?
+  second_year_leap:  0.20    # year-2 players with suppressed rookie usage
+  depth_proximity:   0.20    # how close to the starting job (depth rank)
+  manual_boost:      0.15    # weight applied to manual_catalysts.yaml signals
+
+efficiency:
+  per_touch:         0.50    # yards per touch / per-game production percentile
+  advanced:          0.30    # wopr / target_share / EPA percentile (usage quality)
+  draft_capital:     0.20    # talent prior for players with little/no NFL data
+
+# In-season only: rising recent usage vs season baseline + Sleeper trending adds.
+# Multiplies the final score (1.0 = neutral). Ignored in the preseason.
+momentum:
+  enabled: true
+  max_boost: 0.35            # a red-hot riser can get up to +35%
+
+# Age bands where breakouts cluster, by position: [start, peak, end]
+age_windows:
+  QB: [23, 25, 28]
+  RB: [22, 24, 26]
+  WR: [22, 25, 27]
+  TE: [23, 26, 28]
