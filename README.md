@@ -19,9 +19,9 @@ For each player, four factors are computed and normalized within his position:
 | Suppression | Is he cheap *but still relevant*? | Sleeper market value, scored on a "sweet spot" curve |
 
 ```
-core   = geomean(opportunity, catalyst, efficiency) ** shape
-value  = value_floor + (1 - value_floor) * suppression
-score  = 100 * core * value * momentum        # momentum kicks in during the season
+core = geomean(opportunity, catalyst, efficiency) ** shape
+value = value_floor + (1 - value_floor) * suppression
+score = 100 * core * value * momentum
 ```
 
 ## Data
