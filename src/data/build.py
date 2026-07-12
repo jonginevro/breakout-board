@@ -128,6 +128,22 @@ def build(force: bool = False) -> pd.DataFrame:
     df["exp"] = (config.UPCOMING_SEASON - df["rookie_season"]).clip(lower=0)
     df["is_rookie"] = df["exp"] <= 0
 
+    # Preseason roster releases ship rookies with a null birth_date, so their age
+    # comes out NaN. Backfill from the draft-pick record (age at draft, keyed by
+    # season + overall pick), advanced to the upcoming season. Uses the raw pick
+    # number so undrafted players — who have no pick — never false-match.
+    raw_pick = pd.to_numeric(df["draft_number"], errors="coerce")
+    if df["age"].isna().any() and raw_pick.notna().any():
+        dp = nflverse.draft_picks(force=force)[["season", "pick", "age"]].copy()
+        dp = dp.dropna(subset=["pick", "age"]).drop_duplicates(["season", "pick"])
+        dp["season"] = dp["season"].astype("Int64")
+        dp["pick"] = dp["pick"].astype("Int64")
+        key = pd.DataFrame({"season": df["rookie_season"].astype("Int64"),
+                            "pick": raw_pick.astype("Int64")})
+        draft_age = key.merge(dp, on=["season", "pick"], how="left")["age"]
+        season_age = draft_age.to_numpy() + (config.UPCOMING_SEASON - df["rookie_season"].to_numpy())
+        df["age"] = df["age"].fillna(pd.Series(season_age, index=df.index))
+
     # ---- draft capital (overall pick; undrafted -> just past draft end) -------
     df["draft_pick"] = pd.to_numeric(df["draft_number"], errors="coerce").fillna(262)
 
@@ -159,29 +175,49 @@ def build(force: bool = False) -> pd.DataFrame:
 
     # ---- market value + live trending (Sleeper) ------------------------------
     # Coverage is best via sleeper_id (from the roster); fall back to gsis_id,
-    # then to a name key, so as few players as possible miss their market value.
+    # then to a full-name key, then to a looser first-initial+lastname+position
+    # key. Rookies carry no sleeper_id on the roster and Sleeper hasn't linked
+    # their gsis_id yet, so without the loose key a name variant (Sleeper's
+    # "Matt Hibner" vs the roster's "Matthew Hibner") silently drops both their
+    # market value AND their trending-adds count to zero.
     def _key(s):
         return s.astype(str).str.lower().str.replace(r"[^a-z]", "", regex=True)
+
+    def _loose_key(name: pd.Series, pos: pd.Series) -> pd.Series:
+        parts = name.astype(str).str.lower().str.replace(r"[^a-z ]", "", regex=True).str.split()
+        first_i = parts.str[0].str[:1].fillna("")
+        last = parts.str[-1].fillna("")
+        return first_i + last + pos.astype(str).str.lower()
 
     by_sid = sl.dropna(subset=["sleeper_id"]).drop_duplicates("sleeper_id").set_index("sleeper_id")
     by_gsis = sl.dropna(subset=["gsis_id"]).drop_duplicates("gsis_id").set_index("gsis_id")
     sl_nm = sl.dropna(subset=["sleeper_name"]).copy()
     sl_nm["_k"] = _key(sl_nm["sleeper_name"])
     by_name = sl_nm.drop_duplicates("_k").set_index("_k")
+    sl_nm["_lk"] = _loose_key(sl_nm["sleeper_name"], sl_nm["sleeper_pos"])
+    by_loose = sl_nm[sl_nm["_lk"] != ""].drop_duplicates("_lk").set_index("_lk")
 
     df["_k"] = _key(df["name"])
-    # fill sleeper_id from gsis/name where the roster didn't provide one
+    df["_lk"] = _loose_key(df["name"], df["position"])
+    # fill sleeper_id from gsis, then exact name, then loose name+position
     df["sleeper_id"] = (df["sleeper_id"]
                         .fillna(df["gsis_id"].map(by_gsis["sleeper_id"]))
-                        .fillna(df["_k"].map(by_name["sleeper_id"])))
-    # market value (search_rank): sleeper_id -> gsis -> name
+                        .fillna(df["_k"].map(by_name["sleeper_id"]))
+                        .fillna(df["_lk"].map(by_loose["sleeper_id"])))
+    # market value (search_rank): sleeper_id -> gsis -> name -> loose
     df["search_rank"] = (df["sleeper_id"].map(by_sid["search_rank"])
                          .fillna(df["gsis_id"].map(by_gsis["search_rank"]))
-                         .fillna(df["_k"].map(by_name["search_rank"])))
+                         .fillna(df["_k"].map(by_name["search_rank"]))
+                         .fillna(df["_lk"].map(by_loose["search_rank"])))
     df["search_rank"] = pd.to_numeric(df["search_rank"], errors="coerce").fillna(10_000_000)
+    # Join adds on a normalized string key — roster ids and Sleeper's trending
+    # ids must share a dtype or the merge silently misses.
+    df["sleeper_id"] = df["sleeper_id"].astype("string")
+    trend = trend.copy()
+    trend["sleeper_id"] = trend["sleeper_id"].astype("string")
     df = df.merge(trend, on="sleeper_id", how="left")
     df["trend_count"] = df["trend_count"].fillna(0)
-    df = df.drop(columns="_k")
+    df = df.drop(columns=["_k", "_lk"])
 
     # ---- momentum ------------------------------------------------------------
     df = df.merge(momentum.rename(columns={"player_id": "gsis_id"}), on="gsis_id", how="left")

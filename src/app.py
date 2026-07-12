@@ -50,7 +50,7 @@ def factor_bars(row: pd.Series) -> go.Figure:
 
 # ============================== Sidebar ======================================
 st.sidebar.title("Breakout Board")
-st.sidebar.caption(f"Projecting the **{config.UPCOMING_SEASON}** season · "
+st.sidebar.caption(f"Projecting the **{config.UPCOMING_SEASON}** season, "
                    f"prior baseline **{config.PRIOR_SEASON}**")
 
 if st.sidebar.button("Refresh live data"):
@@ -68,7 +68,7 @@ exp_max = st.sidebar.slider("Max years of experience", 0, 15, 6,
                             help="Breakouts skew young. 0 = rookies only.")
 value_band = st.sidebar.select_slider(
     "Value tier (Sleeper search rank)",
-    options=["Any", "Startable (≤100)", "Cheap sweet spot (≤300)", "Deep (≤600)"],
+    options=["Any", "Startable (≤100)", "Cheap (≤300)", "Deep (≤600)"],
     value="Any")
 name_q = st.sidebar.text_input("Find a player").strip().lower()
 top_n = st.sidebar.number_input("Show top N", 10, 300, 50, step=10)
@@ -76,7 +76,7 @@ top_n = st.sidebar.number_input("Show top N", 10, 300, 50, step=10)
 # ============================== Filtering ====================================
 df = data[data["position"].isin(positions)].copy()
 df = df[df["exp"] <= exp_max]
-band = {"Startable (≤100)": 100, "Cheap sweet spot (≤300)": 300, "Deep (≤600)": 600}
+band = {"Startable (≤100)": 100, "Cheap (≤300)": 300, "Deep (≤600)": 600}
 if value_band in band:
     df = df[df["search_rank"] <= band[value_band]]
 if name_q:
@@ -143,17 +143,18 @@ if options:
                   help="Breakout score")
         st.plotly_chart(factor_bars(row))  # fills its column by default
     with right:
+        age_txt = f"{row['age']:.1f} yrs" if pd.notna(row['age']) else "age n/a"
         st.markdown(f"""
-- **Age / experience:** {row['age']:.1f} yrs · year {int(row['exp'])+1}
-- **Draft capital:** pick {int(row['draft_pick'])}  ·  **depth rank:** {row['pos_rank'] if pd.notna(row['pos_rank']) else '—'}
-- **Vacated workload on team:** {row['team_vacated_share']:.0%}  ·  **his prior share:** {row['share_pos']:.0%}
-- **Last-year production:** {row['ppr_g']:.1f} PPR/g over {int(row['games'])} games
-- **Market value (Sleeper rank):** {int(row['search_rank']) if row['search_rank']<1e6 else 'off-radar'}  ·  **live adds:** {int(row['trend_count'])}
-- **Momentum multiplier:** {row['momentum']:.2f}
+- Age / experience: {age_txt} · year {int(row['exp'])+1}
+- Draft capital: pick {int(row['draft_pick'])}  ·  depth rank: {row['pos_rank'] if pd.notna(row['pos_rank']) else '—'}
+- Vacated workload on team: {row['team_vacated_share']:.0%}  ·  his prior share: {row['share_pos']:.0%}
+- Last-year production: {row['ppr_g']:.1f} PPR/g over {int(row['games'])} games
+- Market value (Sleeper rank): {int(row['search_rank']) if row['search_rank']<1e6 else 'off-radar'}  ·  live adds: {int(row['trend_count'])}
+- Momentum multiplier: {row['momentum']:.2f}
 """)
         weak = min(FACTORS[:3], key=lambda f: row[f])
         strong = max(FACTORS[:3], key=lambda f: row[f])
-        st.info(f"**Read:** carried by {strong}({row[strong]:.2f}); "
+        st.info(f"Read: carried by {strong}({row[strong]:.2f}); "
                 f"the ceiling on his score is {weak} ({row[weak]:.2f}). "
                 + FACTOR_HELP[weak])
 else:
