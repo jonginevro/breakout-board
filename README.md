@@ -1,8 +1,6 @@
 # Fantasy Football Breakout Board
 
-A live tool that ranks NFL skill players by breakout potential: the chance their fantasy value is about to spike, not by how good they already are.
-
-It's built to avoid the two traps:
+A live tool that ranks NFL skill players by breakout potential: the chance their fantasy value is about to spike, not by how good they already are. It's built to avoid the two traps:
 
 - "Every rookie looks elite" - Opportunity, catalyst and efficiency are combined with a geometric mean, so a player must score on all three.
 - "The breakout is unfeasible"- The catalyst factor is anchored to concrete signals (vacated touches, depth-chart rank, draft capital, age window), and the value term rewards the cheap-but-on-the-radar sweet spot rather than totally off-radar dart throws.
@@ -27,8 +25,7 @@ score = 100 * core * value * momentum
 ## Data
 
 - nflverse: release data: weekly stats, rosters, depth charts, draft picks
-- Sleeper API: market value + live "trending adds" for the
-  in-season momentum signal.
+- Sleeper API: market value + live "trending adds" for the in-season momentum signal.
 
 ## Run it
 
@@ -40,5 +37,5 @@ python3 -m venv .venv
 
 ## Tuning
 
-- `config/weights.yaml`: every weight, the value sweet-spot, age windows, and the momentum boost. Change a number, rerun.
-- `config/manual_catalysts.yaml`: the human-judgment signals stats can't see: new coaching staffs, scheme changes, an aging starter ahead, camp buzz.
+- `config/weights.yaml`: every weight, the value sweet-spot, age windows, and the momentum boost.
+- `config/manual_catalysts.yaml`: the human-judgment signals stats can't see (new coaching staffs, scheme changes, an aging starter ahead, camp buzz).
